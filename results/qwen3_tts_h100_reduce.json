@@ -1,0 +1,30 @@
+[
+  {
+    "label": "repo-base",
+    "attn": "repo-default",
+    "mean_ms": 4669.423014322917,
+    "min_ms": 4371.5947265625,
+    "audio": 117120
+  },
+  {
+    "label": "repo-faster",
+    "attn": "repo-default",
+    "mean_ms": 1427.4494222005208,
+    "min_ms": 1425.6083984375,
+    "audio": 134400
+  },
+  {
+    "label": "repo-compile-reduce-overhead",
+    "attn": "sdpa",
+    "mean_ms": 882.3541666666666,
+    "min_ms": 834.7925415039062,
+    "audio": 145920
+  },
+  {
+    "label": "repo-hybrid",
+    "attn": "repo-default",
+    "mean_ms": 1089.0741373697917,
+    "min_ms": 1084.383056640625,
+    "audio": 138240
+  }
+]

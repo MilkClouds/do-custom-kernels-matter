@@ -1,0 +1,9 @@
+[
+  {
+    "label": "repo-compile-max-autotune",
+    "attn": "sdpa",
+    "mean_ms": 608.5893961588541,
+    "min_ms": 602.3085327148438,
+    "audio": 126720
+  }
+]

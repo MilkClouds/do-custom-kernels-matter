@@ -1,0 +1,36 @@
+[project]
+name = "do-custom-kernels-matter"
+version = "0.1.0"
+description = "Measure whether custom kernels materially improve end-to-end inference beyond static-cache, CUDA-graph, and torch.compile baselines."
+authors = [{ name = "MilkClouds" }]
+license = "MIT"
+requires-python = ">=3.11,<3.12"
+dependencies = ["numpy", "torch", "transformers[kernels]>=5.6", "triton>=3.0"]
+
+[project.urls]
+Repository = "https://github.com/MilkClouds/do-custom-kernels-matter"
+
+[project.optional-dependencies]
+qwen35 = ["flash-linear-attention", "causal-conv1d"]
+
+[dependency-groups]
+dev = ["ruff"]
+
+[tool.uv]
+exclude-newer = "2026-06-29T00:00:00+09:00"
+
+[tool.uv.sources]
+causal-conv1d = { url = "https://github.com/Dao-AILab/causal-conv1d/releases/download/v1.6.2.post1/causal_conv1d-1.6.2.post1+cu13torch2.10cxx11abiTRUE-cp311-cp311-linux_x86_64.whl" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kernelcheck", "src/qwen35_triton"]
+
+[tool.ruff]
+line-length = 119
+
+[tool.ruff.lint]
+extend-select = ["I"]

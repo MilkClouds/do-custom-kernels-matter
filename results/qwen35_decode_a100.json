@@ -1,0 +1,176 @@
+{
+  "benchmark": "qwen3.5 decode attribution",
+  "device": "NVIDIA A100 80GB PCIe",
+  "host": "a100-host",
+  "torch": "2.12.1+cu130",
+  "dtype": "bf16",
+  "batch": 1,
+  "prompt": 512,
+  "decode_tokens": 128,
+  "warmup_tokens": 16,
+  "deltanet_fast_path": "fla+causal_conv1d",
+  "sizes": [
+    "0.8B",
+    "2B",
+    "4B",
+    "9B",
+    "27B"
+  ],
+  "paths_requested": [
+    "eager",
+    "compile",
+    "patched-graph"
+  ],
+  "compile_modes": [
+    "reduce-overhead",
+    "max-autotune"
+  ],
+  "results": [
+    {
+      "size": "0.8B",
+      "paths": [
+        {
+          "path": "eager",
+          "tok_s": 28.2,
+          "speedup_vs_eager": 1.0,
+          "error": null
+        },
+        {
+          "path": "compile-reduce-overhead",
+          "tok_s": 353.8,
+          "speedup_vs_eager": 12.526,
+          "error": null
+        },
+        {
+          "path": "compile-max-autotune",
+          "tok_s": 381.4,
+          "speedup_vs_eager": 13.503,
+          "error": null
+        },
+        {
+          "path": "patched-graph",
+          "tok_s": 293.1,
+          "speedup_vs_eager": 10.377,
+          "error": null
+        }
+      ]
+    },
+    {
+      "size": "2B",
+      "paths": [
+        {
+          "path": "eager",
+          "tok_s": 41.3,
+          "speedup_vs_eager": 1.0,
+          "error": null
+        },
+        {
+          "path": "compile-reduce-overhead",
+          "tok_s": 250.5,
+          "speedup_vs_eager": 6.06,
+          "error": null
+        },
+        {
+          "path": "compile-max-autotune",
+          "tok_s": 279.1,
+          "speedup_vs_eager": 6.753,
+          "error": null
+        },
+        {
+          "path": "patched-graph",
+          "tok_s": 224.6,
+          "speedup_vs_eager": 5.434,
+          "error": null
+        }
+      ]
+    },
+    {
+      "size": "4B",
+      "paths": [
+        {
+          "path": "eager",
+          "tok_s": 29.7,
+          "speedup_vs_eager": 1.0,
+          "error": null
+        },
+        {
+          "path": "compile-reduce-overhead",
+          "tok_s": 129.0,
+          "speedup_vs_eager": 4.339,
+          "error": null
+        },
+        {
+          "path": "compile-max-autotune",
+          "tok_s": 140.9,
+          "speedup_vs_eager": 4.74,
+          "error": null
+        },
+        {
+          "path": "patched-graph",
+          "tok_s": 118.8,
+          "speedup_vs_eager": 3.996,
+          "error": null
+        }
+      ]
+    },
+    {
+      "size": "9B",
+      "paths": [
+        {
+          "path": "eager",
+          "tok_s": 29.7,
+          "speedup_vs_eager": 1.0,
+          "error": null
+        },
+        {
+          "path": "compile-reduce-overhead",
+          "tok_s": 84.1,
+          "speedup_vs_eager": 2.832,
+          "error": null
+        },
+        {
+          "path": "compile-max-autotune",
+          "tok_s": 88.8,
+          "speedup_vs_eager": 2.989,
+          "error": null
+        },
+        {
+          "path": "patched-graph",
+          "tok_s": 78.3,
+          "speedup_vs_eager": 2.636,
+          "error": null
+        }
+      ]
+    },
+    {
+      "size": "27B",
+      "paths": [
+        {
+          "path": "eager",
+          "tok_s": 14.8,
+          "speedup_vs_eager": 1.0,
+          "error": null
+        },
+        {
+          "path": "compile-reduce-overhead",
+          "tok_s": 26.2,
+          "speedup_vs_eager": 1.777,
+          "error": null
+        },
+        {
+          "path": "compile-max-autotune",
+          "tok_s": 27.6,
+          "speedup_vs_eager": 1.869,
+          "error": null
+        },
+        {
+          "path": "patched-graph",
+          "tok_s": 25.6,
+          "speedup_vs_eager": 1.732,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "wall_s": 1129.5
+}

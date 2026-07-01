@@ -1,0 +1,57 @@
+{
+  "benchmark": "qwen3.5 decode attribution",
+  "device": "NVIDIA H100 80GB HBM3",
+  "host": "h100-host",
+  "torch": "2.12.1+cu130",
+  "dtype": "bf16",
+  "batch": 1,
+  "prompt": 512,
+  "decode_tokens": 128,
+  "warmup_tokens": 16,
+  "deltanet_fast_path": "fla+causal_conv1d",
+  "sizes": [
+    "9B"
+  ],
+  "paths_requested": [
+    "eager",
+    "hf-graph",
+    "patched-eager",
+    "patched-graph"
+  ],
+  "compile_modes": [
+    "reduce-overhead",
+    "max-autotune"
+  ],
+  "results": [
+    {
+      "size": "9B",
+      "paths": [
+        {
+          "path": "eager",
+          "tok_s": 36.0,
+          "speedup_vs_eager": 1.0,
+          "error": null
+        },
+        {
+          "path": "hf-graph",
+          "tok_s": 119.3,
+          "speedup_vs_eager": 3.318,
+          "error": null
+        },
+        {
+          "path": "patched-eager",
+          "tok_s": 41.2,
+          "speedup_vs_eager": 1.146,
+          "error": null
+        },
+        {
+          "path": "patched-graph",
+          "tok_s": 129.1,
+          "speedup_vs_eager": 3.591,
+          "error": null
+        }
+      ]
+    }
+  ],
+  "wall_s": 77.6
+}

@@ -1,0 +1,57 @@
+{
+  "scope": "Public examples of GPU-kernel inference attribution issues.",
+  "private_repos_excluded": true,
+  "note": "This is a structured public-examples summary, not a full raw audit log.",
+  "stars_note": "GitHub stars observed on 2026-07-01; stars are visibility context, not a quality score.",
+  "pattern": "Many headline speedups can over-credit custom kernels when the optimized path also changes cache shape, graph capture, batching, precision, or compiler settings. The decisive measurement is the marginal custom-kernel gain over the best framework static-cache and torch.compile path.",
+  "public_examples": [
+    {
+      "repo": "harleyszhang/lite_llama",
+      "url": "https://github.com/harleyszhang/lite_llama",
+      "stars_observed_2026_07_01": 188,
+      "evidence": "Optimized path includes compiled/static execution, so eager HF generate is not enough to isolate kernel contribution."
+    },
+    {
+      "repo": "tsdocode/nano-qwen3tts-vllm",
+      "url": "https://github.com/tsdocode/nano-qwen3tts-vllm",
+      "stars_observed_2026_07_01": 130,
+      "evidence": "README credits CUDA graphs for the main 2-3x path, not isolated custom kernels."
+    },
+    {
+      "repo": "RightNow-AI/qwen3.5-triton",
+      "url": "https://github.com/RightNow-AI/qwen3.5-triton",
+      "stars_observed_2026_07_01": 117,
+      "evidence": "The optimized path receives static cache and manual CUDA graph replay; the published torch.compile baseline is not the analogous StaticCache + reduce-overhead setup."
+    },
+    {
+      "repo": "newgrit1004/qwen3-tts-triton",
+      "url": "https://github.com/newgrit1004/qwen3-tts-triton",
+      "stars_observed_2026_07_01": 96,
+      "evidence": "Its own decomposition reports Triton-only around 1.1x, Faster around 4x, and Hybrid around 5x."
+    },
+    {
+      "repo": "newgrit1004/omnivoice-triton",
+      "url": "https://github.com/newgrit1004/omnivoice-triton",
+      "stars_observed_2026_07_01": 54,
+      "evidence": "Its own mode table reports Triton-only 1.02x and CUDA-Graph-only 2.75x."
+    },
+    {
+      "repo": "RightNow-AI/TIDE",
+      "url": "https://github.com/RightNow-AI/TIDE",
+      "stars_observed_2026_07_01": 32,
+      "evidence": "Reported speedups require path-level benchmark audit before attributing gains to kernels alone."
+    },
+    {
+      "repo": "Vishwa44/SparkTTSOptimized",
+      "url": "https://github.com/Vishwa44/SparkTTSOptimized",
+      "stars_observed_2026_07_01": 0,
+      "evidence": "Its own table reports a torch.compile + FlashAttention 2 path beating the custom-kernel path."
+    },
+    {
+      "repo": "Hmbown/reCUDA",
+      "url": "https://github.com/Hmbown/reCUDA",
+      "stars_observed_2026_07_01": 0,
+      "evidence": "Precision regime and full-model-vs-microbenchmark attribution need to be read separately; reported full-model gain is around 1.1-1.2x."
+    }
+  ]
+}
