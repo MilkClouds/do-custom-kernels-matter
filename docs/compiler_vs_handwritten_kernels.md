@@ -1,109 +1,269 @@
-# Compiler-Generated vs Handwritten Kernels
+# Full `torch.compile` Artifact vs Handwritten Kernels
 
-This note compares what the handwritten kernels in this repo do against what a
-proper `torch.compile` baseline can generate. It is intentionally separate from
-the README: generated compiler artifacts are useful for audit, but they are too
-version-, shape-, and device-specific to be the main public narrative.
+This document compares the handwritten Qwen3.5 Triton path against the actual
+code shape produced by `torch.compile` for the full fixed-shape decode step.
 
-## What `torch.compile` Produces
+This is not a toy leaf-op comparison. The artifact below comes from compiling a
+real Qwen3.5 one-token decode forward with a reused `StaticCache`.
 
-`torch.compile` does not emit one readable replacement for a whole model. The
-pipeline captures an FX graph, lowers pieces through Inductor, and emits a
-Python wrapper that launches a mix of:
+## Setup
 
-- generated Triton kernels for fused pointwise/reduction regions,
-- library calls such as cuBLAS/cuDNN/attention backends for heavy kernels,
-- graph replay / reduced dispatch overhead when the graph is static enough.
+Configuration used for the artifact audit:
 
-So a literal line-by-line comparison is only meaningful for small isolated
-regions. For full autoregressive decode, the better comparison is structural:
-which operations are fused, which shapes are static, whether the decode step is
-capturable, and what the end-to-end attribution says.
+- Model: random-init Qwen3.5 0.8B config, same code path as the benchmark sweep
+- Timed/compiled region shape: one-token decode after a 32-token prefill
+- Cache: Hugging Face `StaticCache`
+- Compiler call: `torch.compile(model, mode="max-autotune", fullgraph=False)`
+- Device: H100
+- PyTorch: `2.12.1+cu130`
+- Debug mode: `TORCH_COMPILE_DEBUG=1`
 
-## Isolated Op Check
+The generated raw file was an Inductor `output_code.py` under `/tmp`. It is not
+committed because these files are version-, shape-, and device-specific.
 
-To sanity-check the compiler side, three small functions matching the
-manual-kernel targets were compiled on an H100 with PyTorch `2.12.1+cu130`,
-bf16 tensors, and `mode="max-autotune"`. Dumps were generated only in `/tmp` with
-`TORCH_COMPILE_DEBUG=1`; raw generated files are not committed.
+Observed artifact shape:
 
-| Function compiled | Inductor output | Interpretation |
-|---|---|---|
-| RMSNorm over `[16, 4096]` | one Triton reduction kernel, `triton_red_fused__to_copy_add_mean_mul_pow_rsqrt_0` | Inductor fuses cast, square, mean, rsqrt, multiply, and output cast into one row-wise kernel. |
-| `silu(gate) * up` over `[16, 12288]` | one Triton pointwise kernel, `triton_poi_fused__to_copy_mul_silu_0` | Inductor emits the same basic fusion class as the handwritten SwiGLU/SILU-mul kernel. |
-| residual add + RMSNorm over `[16, 4096]` | one Triton reduction kernel, `triton_red_fused__to_copy_add_mean_mul_pow_rsqrt_0` | Inductor can fuse the residual add into the RMSNorm-style reduction when the region is compiled as one graph. |
+| Item | Observed |
+|---|---:|
+| Inductor `output_code.py` partitions | 1 |
+| Generated Triton function definitions | 37 |
+| Triton launch call sites in wrapper | 267 |
 
-This does not prove that every full-model compile will fuse every instance the
-same way. It does show that the manual kernels are not uniquely capable of these
-leaf fusions: Inductor can generate the same categories of Triton kernels when
-the code is presented as a stable, compilable region.
+This already answers the most important question: the full compiled decode step
+does not map one handwritten kernel to one generated kernel. Inductor lowers the
+whole fixed-shape decode graph into a large wrapper with many generated Triton
+kernels, repeated launches across layers, and calls/regions corresponding to
+attention, DeltaNet fast-path ops, cache updates, matmuls, normalizations, and
+pointwise math.
 
-## Handwritten Kernel Scope
+## Representative Generated Kernels
 
-### Qwen3.5
+The examples below are excerpts from the full decode-step artifact, not from
+manually segmented standalone functions.
 
-The vendored Qwen3.5 path patches selected leaf ops:
+### MLP: compiler fuses across the handwritten boundary
 
-| Manual kernel | File | What it replaces |
-|---|---|---|
-| RMSNorm | `src/qwen35_triton/kernels/rmsnorm.py` | Qwen3.5 RMSNorm, including the `(1 + weight)` convention. |
-| SwiGLU / SiLU-mul | `src/qwen35_triton/kernels/mlp.py` | The elementwise `silu(gate_proj(x)) * up_proj(x)` between cuBLAS GEMMs. |
-| gated RMSNorm | `src/qwen35_triton/kernels/rmsnorm_gated.py` | DeltaNet output norm plus gate. |
-| QK-norm + partial RoPE | `src/qwen35_triton/kernels/qknorm_rope.py` | Optional fusion inside attention; the default patch path already covers QK-norm through the RMSNorm swap. |
+Representative generated kernel:
 
-The GEMMs remain cuBLAS. Attention and DeltaNet fast paths remain external
-framework/library work. The custom kernels therefore optimize small reduction
-and pointwise islands; they do not replace the full decode step.
+```text
+triton_red_fused__unsafe_view_mm_mul_silu_t_view_10
+```
 
-### Qwen3-TTS
+Inductor provenance comment:
 
-The public `qwen3-tts-triton` Hybrid path benchmarked here patches:
+```text
+Topologically Sorted Source Nodes:
+[linear_5, silu, linear_6, mul_7, down_proj]
 
-| Manual kernel family | Public file | What it replaces |
-|---|---|---|
-| RMSNorm | `qwen3_tts_triton/kernels/rms_norm.py` | RMSNorm module calls. |
-| SwiGLU | `qwen3_tts_triton/kernels/swiglu.py` | `silu(gate) * up` inside MLP. |
-| residual add + RMSNorm | `qwen3_tts_triton/kernels/fused_norm_residual.py` | Post-attention residual add plus norm. |
+Original ATen:
+[aten.mm, aten._unsafe_view, aten.silu, aten.mul, aten.view, aten.t]
+```
 
-That repository also contains an M-RoPE kernel, but the audited
-`apply_triton_kernels()` path patches RMSNorm, MLP SwiGLU, and fused
-norm/residual. The large Hybrid speedup comes from combining these patches with
-the `faster-qwen3-tts` StaticCache + CUDA graph path, not from the leaf kernels
-alone.
+Excerpt from the generated Triton body:
 
-## What the Comparison Says
+```python
+tmp0 = tl.load(in_ptr0 + r0_1, ...)
+tmp9 = tl.load(in_ptr1 + r0_1, ...)
+tmp13 = tl.load(in_ptr2 + (r0_1 + 3584*x0), ...).to(tl.float32)
 
-The compiler and handwritten kernels are closer at the leaf-op level than the
-marketing framing suggests. For RMSNorm, SiLU-mul, and residual+RMSNorm,
-Inductor can produce one fused Triton kernel for the same broad computation
-class. Handwritten Triton can still be useful for exact numerical control,
-special layouts, version-independent patching, or cases where the compiler
-misses a fusion. But those are local benefits.
+tmp3 = -tmp0.to(tl.float32)
+tmp4 = libdevice.exp(tmp3)
+tmp7 = tmp0.to(tl.float32) / (tmp4 + 1.0)  # silu(gate)
+tmp11 = tmp7 * tmp9.to(tl.float32)         # silu(gate) * up
+tmp15 = tmp11 * tmp13.to(tl.float32)       # fused into matmul reduction
+_tmp17 = tl.where(r0_mask & xmask, _tmp17 + tmp15, _tmp17)
+...
+tl.store(out_ptr0 + x0, tl.sum(_tmp17, 1)[:, None], xmask)
+```
 
-The end-to-end results are dominated by a larger lever:
+The handwritten path in this repo patches only the elementwise middle:
 
-| Case | Leaf-kernel effect | Static/graph effect | Strong framework result |
-|---|---:|---:|---|
-| Qwen3.5 9B decode | 1.08-1.15x | 2.38-3.32x | `StaticCache + torch.compile(max-autotune)` beats custom+graph by 1.06-1.49x across 0.8B-27B. |
-| Qwen3-TTS E2E | 1.29-1.35x over Faster | 3.75-5.74x over Base | fixed-shape predictor/talker `torch.compile(max-autotune)` is 1.46-1.64x faster than Hybrid. |
+```python
+return self.down_proj(fused_silu_mul(self.gate_proj(x), self.up_proj(x)))
+```
 
-That is the main attribution point. A handwritten Triton kernel may be locally
-reasonable and still be the wrong explanation for a headline 4-10x improvement.
-For decode-style workloads, first make the KV/state cache static, compile or
-graph the fixed-shape step, and only then measure whether custom kernels add
-meaningful marginal speed.
+So the manual kernel fuses:
 
-## How To Audit This Properly
+```text
+silu(gate_proj(x)) * up_proj(x)
+```
 
-Use compiler artifacts as supporting evidence, not as the primary benchmark.
-Generated code changes across PyTorch versions and shapes, and full-model
-decode includes library calls plus graph replay, not just generated Triton.
+but the compiled artifact can fuse the activation/multiply into the following
+`down_proj` reduction for this decode shape. That is a larger fusion boundary
+than the handwritten leaf kernel. This is one concrete reason the compiler
+baseline should not be treated as "eager plus a few obvious fusions"; it can see
+through module boundaries that the monkey patch intentionally preserves.
 
-The robust audit sequence is:
+### Q/K norm + RoPE: compiler emits a large fused pointwise region
 
-1. Check correctness for the custom kernels.
-2. Measure eager/static-cache, graph-only, kernel-only, kernel+graph, and
-   `torch.compile` paths on the same timed region.
-3. Inspect generated compiler output for representative leaf ops to see whether
-   the compiler already fuses the same operation class.
-4. Attribute the end-to-end speedup to the lever that actually moves the number.
+Representative generated kernel:
+
+```text
+triton_poi_fused__to_copy__unsafe_view_add_arange_bmm_cat_cos_expand_mean_mm_mul_neg_pow_rsqrt_select_sin_slice_transpose_unsqueeze_view_26
+```
+
+Inductor provenance comment, shortened:
+
+```text
+Topologically Sorted Source Nodes:
+[position id construction, cos, sin, linear_25, view_3, mean_8,
+ add_28, rsqrt_8, output_19, key_states, k_rot, neg, cat, k_embed]
+
+Original ATen:
+[aten.unsqueeze, aten._to_copy, aten.expand, aten.view, aten.arange,
+ aten.add, aten.slice, aten.bmm, aten.transpose, aten.select, aten.cat,
+ aten.cos, aten.mul, aten.sin, aten.mm, aten.pow, aten.mean, aten.rsqrt,
+ aten.neg]
+```
+
+Excerpt from the generated Triton body:
+
+```python
+tmp46 = tl.load(in_ptr0 + (x0 + 256*x1), xmask)
+tmp49 = tl.load(in_ptr1 + x1, xmask)
+tmp56 = tl.load(in_ptr2 + x0, xmask).to(tl.float32)
+...
+tmp12 = (tmp8 / 256.0) + 1e-06
+tmp13 = libdevice.rsqrt(tmp12)
+tmp14 = tmp7 * tmp13
+tmp19 = tmp14 * (tmp15.to(tl.float32) + 1.0)
+tmp21 = -tmp19
+...
+```
+
+The handwritten Qwen3.5 package contains an optional `fused_qknorm_rope` kernel,
+but the default benchmark patch path does not enable the whole-attention
+replacement. It only swaps `Qwen3_5RMSNorm.forward`, which also affects Q/K norm
+modules. The compiled full artifact, by contrast, sees the surrounding position
+construction, norm, trig tables, slicing, rotation, and embedding/cache logic as
+one larger fused region where possible.
+
+This is not a claim that the generated Q/K-RoPE region is always superior to a
+carefully handwritten kernel. It is evidence that the fair compiler baseline is
+not merely reproducing the same small hand-written leaf kernel; it is compiling
+a broader graph region.
+
+### Attention mask / SDPA boundary
+
+Representative generated kernel:
+
+```text
+triton_poi_fused__scaled_dot_product_cudnn_attention__unsafe_view_add_arange_clone_expand_le_scalar_tensor_unsqueeze_where_1
+```
+
+Inductor provenance comment:
+
+```text
+Topologically Sorted Source Nodes:
+[key_6, value_6, arange_4, kv_arange, kv_indices, arange_3, q_arange,
+ q_indices, attention_mask, attention_mask_1, attn_output]
+
+Original ATen:
+[aten.unsqueeze, aten.expand, aten.clone, aten._unsafe_view, aten.arange,
+ aten.add, aten.le, aten.scalar_tensor, aten.where,
+ aten._scaled_dot_product_cudnn_attention]
+```
+
+Excerpt:
+
+```python
+tmp0 = tl.load(in_ptr0 + 0)
+tmp3 = tmp0 + 0
+tmp5 = x0 <= tmp3
+tmp8 = tl.where(tmp5, 0.0, float("-inf"))
+tl.store(out_ptr0 + x0, tmp8, xmask)
+```
+
+The custom Triton path does not replace attention with a handwritten attention
+kernel. The compiled graph still relies on the framework attention backend, but
+it also folds surrounding mask/index construction into generated kernels. That
+matters for decode workloads because CPU launch overhead and small pointwise
+ops are part of the cost.
+
+### DeltaNet / causal-conv fast path stays part of the compiled graph
+
+Representative generated kernel:
+
+```text
+triton_per_fused__causal_conv1d_update_cpp__to_copy__unsafe_view_add_embedding_mean_mm_mul_pow_rsqrt_squeeze_t_transpose_view_5
+```
+
+Inductor provenance comment:
+
+```text
+Topologically Sorted Source Nodes:
+[inputs_embeds, RMSNorm pieces, hidden_states, mixed_qkv, squeeze]
+
+Original ATen:
+[aten.embedding, aten._to_copy, aten.pow, aten.mean, aten.add, aten.rsqrt,
+ aten.mul, aten.view, aten.mm, aten.t, aten._unsafe_view, aten.transpose,
+ aten.squeeze, DaoAILab._causal_conv1d_update_cpp]
+```
+
+The important detail is that the fair Qwen3.5 baseline must have the
+`flash-linear-attention` / `causal-conv1d` fast path installed. The handwritten
+Triton kernels are not replacing that subsystem. The compiled artifact shows
+those fast-path ops participating in the same compiled decode graph.
+
+## Comparison Against The Handwritten Path
+
+The handwritten path patches selected module boundaries:
+
+| Handwritten patch | Scope |
+|---|---|
+| `rmsnorm` | Qwen3.5 RMSNorm, including the `(1 + weight)` convention |
+| `fused_silu_mul` | only the `silu(gate) * up` elementwise middle of the MLP |
+| `rmsnorm_gated` | DeltaNet output norm plus gate |
+| optional `fused_qknorm_rope` | Q/K norm + partial RoPE, only when the whole attention-forward patch is enabled |
+| `GraphedDecoder` | manual CUDA graph replay over a fixed-shape decode step |
+
+The compiled path is different. It compiles the full one-token decode forward
+with static cache state and emits many generated kernels across larger graph
+regions. In the observed artifact, some generated kernels include `mm`, `silu`,
+normalization, RoPE-related pointwise work, attention-mask construction, cache
+updates, and DeltaNet fast-path boundaries in the same compiled wrapper.
+
+That means the comparison is not:
+
+```text
+handwritten RMSNorm kernel vs compiler RMSNorm kernel
+```
+
+The real comparison is:
+
+```text
+handwritten leaf patches + manual graph replay
+vs
+compiler-generated full decode-step wrapper + generated Triton regions + framework fast paths + graph/replay behavior
+```
+
+## Takeaway
+
+The full artifact makes the README result more plausible, not less:
+
+- The handwritten kernels optimize useful local regions.
+- The compiler baseline can generate Triton for broader regions than those
+  handwritten leaf patches.
+- For MLP, the generated artifact fuses `silu(gate) * up` into a following
+  matmul-style reduction, while the handwritten patch leaves `down_proj` as a
+  separate call.
+- For Q/K norm and RoPE-related work, the generated artifact includes a large
+  pointwise region around position construction, normalization, trig tables, and
+  rotation/cache work.
+- The largest benchmark gains still come from static cache and graph/compile
+  replay, not from the existence of a few handwritten kernels.
+
+This is why a strong baseline must be `StaticCache + torch.compile` or an
+equivalent fixed-shape graph path. Eager `generate()` is not a serious
+denominator for attributing decode speedups to custom kernels.
+
+## Caveats
+
+- This artifact is for Qwen3.5 0.8B, batch 1, one-token decode, H100,
+  PyTorch `2.12.1+cu130`. Other sizes and PyTorch versions can generate
+  different code.
+- The model is random-initialized, as in the latency benchmark. That is valid
+  for compile/code-shape and latency attribution, not for quality evaluation.
+- This document inspects Qwen3.5 full-decode compile output. Qwen3-TTS has a
+  separate benchmark and a custom compile wrapper over predictor/talker regions;
+  its full Inductor artifact is not included here.
