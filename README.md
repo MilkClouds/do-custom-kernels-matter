@@ -30,6 +30,10 @@ against the strongest framework baseline, not only against eager `generate()`.
 
 ![Measured performance of every path on H100 and A100 for both cases](assets/main_results.svg)
 
+*`Graph only` = StaticCache + CUDA graph, no custom kernels. `Compile only` =
+pure `torch.compile(max-autotune)` on the same fixed-shape regions, no custom
+kernels. `Kernels ...` rows add the project's custom Triton kernels.*
+
 - **The headline gains come from static shapes plus graph capture or
   compile**: graph alone is **2.4-3.0x** over eager decode on Qwen3.5 and
   **3.5-4.8x** on Qwen3-TTS; compile alone reaches **3.1-4.2x** and
@@ -43,9 +47,7 @@ against the strongest framework baseline, not only against eager `generate()`.
 
 Notes:
 
-- All numbers are steady-state measurements after warmup. `Graph only` =
-  StaticCache + CUDA graph, `Compile only` = `torch.compile(max-autotune)` on
-  the same fixed-shape regions, `+` rows add the project's custom kernels.
+- All numbers are steady-state measurements after warmup.
 - Qwen3.5 panels show the 9B attribution runs with
   [`RightNow-AI/qwen3.5-triton`](https://github.com/RightNow-AI/qwen3.5-triton)-derived
   kernels; the 0.8B-27B sweep is in Case Study 1.
