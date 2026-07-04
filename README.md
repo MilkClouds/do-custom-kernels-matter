@@ -11,12 +11,6 @@ This repo asks one narrow question:
 > after comparing against strong framework baselines such as static KV cache,
 > CUDA graphs, batching, and `torch.compile`?
 
-Custom kernels and `torch.compile` are not mutually exclusive, since a Triton
-kernel can run inside a compiled region. The question is therefore measured
-two ways: the custom-kernel path against the `torch.compile` path
-head-to-head, and the same `torch.compile` path with vs without the custom
-kernels traced inside.
-
 Short answer: not by themselves. In the reproduced cases below, the large
 headline speedups come from static shapes and graph capture. The handwritten
 kernels add a much smaller marginal improvement, a **correctly configured
