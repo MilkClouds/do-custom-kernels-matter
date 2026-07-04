@@ -30,7 +30,7 @@ submit_qwen35_decode() {
       UV_CACHE_DIR=$UV_CACHE_DIR RUFF_CACHE_DIR=$RUFF_CACHE_DIR && \
       uv run --extra qwen35 python -u scripts/qwen35/bench_decode.py \
         --sizes 0.8B 2B 4B 9B 27B \
-        --paths eager compile patched-graph \
+        --paths eager compile patched-graph patched-compile \
         --json $out_json'"
 }
 
@@ -51,7 +51,7 @@ submit_qwen35_ablation() {
       UV_CACHE_DIR=$UV_CACHE_DIR RUFF_CACHE_DIR=$RUFF_CACHE_DIR && \
       uv run --extra qwen35 python -u scripts/qwen35/bench_decode.py \
         --sizes 9B \
-        --paths eager hf-graph patched-eager patched-graph \
+        --paths eager compile hf-graph patched-eager patched-graph patched-compile \
         --json $out_json'"
 }
 
@@ -70,7 +70,7 @@ submit_qwen3_tts_reduce() {
     --job-name="qwen3tts-${partition}" --output="/tmp/qwen3tts_${partition}_%j.log" \
     --wrap="bash -lc 'cd $THIS && export HF_HOME=$HF_HOME && \
       export PYTHONPATH=$THIS/src:$QWEN3_TTS/src:$QWEN3_TTS && \
-      export MNT=256 WARMUP=2 REPEAT=3 ROWS=base,faster,compile,hybrid ATTN=sdpa \
+      export MNT=256 WARMUP=2 REPEAT=3 ROWS=base,faster,compile,hybrid,hybrid-compile ATTN=sdpa \
       INCLUDE_COMPILE=1 COMPILE_MODE=reduce-overhead OUT=$out_json && \
       exec $QWEN3_TTS/.venv/bin/python -u $THIS/scripts/qwen3_tts/bench_e2e.py'"
 }
@@ -90,7 +90,7 @@ submit_qwen3_tts_max() {
     --job-name="qwen3tts-max-${partition}" --output="/tmp/qwen3tts_max_${partition}_%j.log" \
     --wrap="bash -lc 'cd $THIS && export HF_HOME=$HF_HOME && \
       export PYTHONPATH=$THIS/src:$QWEN3_TTS/src:$QWEN3_TTS && \
-      export MNT=256 WARMUP=1 REPEAT=3 ROWS=compile ATTN=sdpa \
+      export MNT=256 WARMUP=1 REPEAT=3 ROWS=compile,hybrid-compile ATTN=sdpa \
       INCLUDE_COMPILE=1 COMPILE_MODE=max-autotune OUT=$out_json && \
       exec $QWEN3_TTS/.venv/bin/python -u $THIS/scripts/qwen3_tts/bench_e2e.py'"
 }

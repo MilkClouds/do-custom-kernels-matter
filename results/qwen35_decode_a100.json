@@ -7,6 +7,7 @@
   "batch": 1,
   "prompt": 512,
   "decode_tokens": 128,
+  "timed_region": "fixed prompt prefill plus generated decode tokens; compile/graph/custom interventions target the fixed-shape decode step",
   "warmup_tokens": 16,
   "deltanet_fast_path": "fla+causal_conv1d",
   "sizes": [
@@ -19,7 +20,8 @@
   "paths_requested": [
     "eager",
     "compile",
-    "patched-graph"
+    "patched-graph",
+    "patched-compile"
   ],
   "compile_modes": [
     "reduce-overhead",
@@ -31,26 +33,38 @@
       "paths": [
         {
           "path": "eager",
-          "tok_s": 28.2,
+          "tok_s": 40.6,
           "speedup_vs_eager": 1.0,
           "error": null
         },
         {
           "path": "compile-reduce-overhead",
-          "tok_s": 353.8,
-          "speedup_vs_eager": 12.526,
+          "tok_s": 367.9,
+          "speedup_vs_eager": 9.053,
           "error": null
         },
         {
           "path": "compile-max-autotune",
-          "tok_s": 381.4,
-          "speedup_vs_eager": 13.503,
+          "tok_s": 428.3,
+          "speedup_vs_eager": 10.539,
           "error": null
         },
         {
           "path": "patched-graph",
-          "tok_s": 293.1,
-          "speedup_vs_eager": 10.377,
+          "tok_s": 315.5,
+          "speedup_vs_eager": 7.762,
+          "error": null
+        },
+        {
+          "path": "patched-compile-reduce-overhead",
+          "tok_s": 360.1,
+          "speedup_vs_eager": 8.861,
+          "error": null
+        },
+        {
+          "path": "patched-compile-max-autotune",
+          "tok_s": 396.7,
+          "speedup_vs_eager": 9.761,
           "error": null
         }
       ]
@@ -60,26 +74,38 @@
       "paths": [
         {
           "path": "eager",
-          "tok_s": 41.3,
+          "tok_s": 39.4,
           "speedup_vs_eager": 1.0,
           "error": null
         },
         {
           "path": "compile-reduce-overhead",
-          "tok_s": 250.5,
-          "speedup_vs_eager": 6.06,
+          "tok_s": 250.7,
+          "speedup_vs_eager": 6.356,
           "error": null
         },
         {
           "path": "compile-max-autotune",
-          "tok_s": 279.1,
-          "speedup_vs_eager": 6.753,
+          "tok_s": 288.5,
+          "speedup_vs_eager": 7.316,
           "error": null
         },
         {
           "path": "patched-graph",
-          "tok_s": 224.6,
-          "speedup_vs_eager": 5.434,
+          "tok_s": 224.8,
+          "speedup_vs_eager": 5.699,
+          "error": null
+        },
+        {
+          "path": "patched-compile-reduce-overhead",
+          "tok_s": 245.4,
+          "speedup_vs_eager": 6.223,
+          "error": null
+        },
+        {
+          "path": "patched-compile-max-autotune",
+          "tok_s": 278.8,
+          "speedup_vs_eager": 7.069,
           "error": null
         }
       ]
@@ -89,26 +115,38 @@
       "paths": [
         {
           "path": "eager",
-          "tok_s": 29.7,
+          "tok_s": 30.5,
           "speedup_vs_eager": 1.0,
           "error": null
         },
         {
           "path": "compile-reduce-overhead",
           "tok_s": 129.0,
-          "speedup_vs_eager": 4.339,
+          "speedup_vs_eager": 4.234,
           "error": null
         },
         {
           "path": "compile-max-autotune",
           "tok_s": 140.9,
-          "speedup_vs_eager": 4.74,
+          "speedup_vs_eager": 4.626,
           "error": null
         },
         {
           "path": "patched-graph",
-          "tok_s": 118.8,
-          "speedup_vs_eager": 3.996,
+          "tok_s": 119.0,
+          "speedup_vs_eager": 3.906,
+          "error": null
+        },
+        {
+          "path": "patched-compile-reduce-overhead",
+          "tok_s": 127.0,
+          "speedup_vs_eager": 4.169,
+          "error": null
+        },
+        {
+          "path": "patched-compile-max-autotune",
+          "tok_s": 133.6,
+          "speedup_vs_eager": 4.385,
           "error": null
         }
       ]
@@ -118,26 +156,38 @@
       "paths": [
         {
           "path": "eager",
-          "tok_s": 29.7,
+          "tok_s": 30.0,
           "speedup_vs_eager": 1.0,
           "error": null
         },
         {
           "path": "compile-reduce-overhead",
-          "tok_s": 84.1,
-          "speedup_vs_eager": 2.832,
+          "tok_s": 84.2,
+          "speedup_vs_eager": 2.806,
           "error": null
         },
         {
           "path": "compile-max-autotune",
-          "tok_s": 88.8,
-          "speedup_vs_eager": 2.989,
+          "tok_s": 89.2,
+          "speedup_vs_eager": 2.974,
           "error": null
         },
         {
           "path": "patched-graph",
-          "tok_s": 78.3,
-          "speedup_vs_eager": 2.636,
+          "tok_s": 79.2,
+          "speedup_vs_eager": 2.641,
+          "error": null
+        },
+        {
+          "path": "patched-compile-reduce-overhead",
+          "tok_s": 82.1,
+          "speedup_vs_eager": 2.735,
+          "error": null
+        },
+        {
+          "path": "patched-compile-max-autotune",
+          "tok_s": 89.8,
+          "speedup_vs_eager": 2.992,
           "error": null
         }
       ]
@@ -153,24 +203,36 @@
         },
         {
           "path": "compile-reduce-overhead",
-          "tok_s": 26.2,
-          "speedup_vs_eager": 1.777,
+          "tok_s": 26.4,
+          "speedup_vs_eager": 1.787,
           "error": null
         },
         {
           "path": "compile-max-autotune",
-          "tok_s": 27.6,
-          "speedup_vs_eager": 1.869,
+          "tok_s": 28.2,
+          "speedup_vs_eager": 1.907,
           "error": null
         },
         {
           "path": "patched-graph",
-          "tok_s": 25.6,
-          "speedup_vs_eager": 1.732,
+          "tok_s": 25.5,
+          "speedup_vs_eager": 1.73,
+          "error": null
+        },
+        {
+          "path": "patched-compile-reduce-overhead",
+          "tok_s": 26.1,
+          "speedup_vs_eager": 1.769,
+          "error": null
+        },
+        {
+          "path": "patched-compile-max-autotune",
+          "tok_s": 27.7,
+          "speedup_vs_eager": 1.88,
           "error": null
         }
       ]
     }
   ],
-  "wall_s": 1129.5
+  "wall_s": 1062.8
 }

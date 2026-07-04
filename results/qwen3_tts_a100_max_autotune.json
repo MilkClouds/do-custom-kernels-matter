@@ -2,8 +2,15 @@
   {
     "label": "repo-compile-max-autotune",
     "attn": "sdpa",
-    "mean_ms": 958.4740397135416,
-    "min_ms": 934.8617553710938,
+    "mean_ms": 836.8661905924479,
+    "min_ms": 836.1455078125,
     "audio": 128640
+  },
+  {
+    "label": "repo-hybrid-compile-max-autotune",
+    "attn": "sdpa",
+    "mean_ms": 1116.8304850260417,
+    "min_ms": 1114.1148681640625,
+    "audio": 165120
   }
 ]

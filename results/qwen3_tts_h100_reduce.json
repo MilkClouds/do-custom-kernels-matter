@@ -2,29 +2,36 @@
   {
     "label": "repo-base",
     "attn": "repo-default",
-    "mean_ms": 4669.423014322917,
-    "min_ms": 4371.5947265625,
-    "audio": 117120
+    "mean_ms": 4782.3798828125,
+    "min_ms": 4657.5947265625,
+    "audio": 126720
   },
   {
     "label": "repo-faster",
     "attn": "repo-default",
-    "mean_ms": 1427.4494222005208,
-    "min_ms": 1425.6083984375,
+    "mean_ms": 1429.2038981119792,
+    "min_ms": 1424.13916015625,
     "audio": 134400
   },
   {
     "label": "repo-compile-reduce-overhead",
     "attn": "sdpa",
-    "mean_ms": 882.3541666666666,
-    "min_ms": 834.7925415039062,
-    "audio": 145920
+    "mean_ms": 837.9474894205729,
+    "min_ms": 781.986328125,
+    "audio": 138240
   },
   {
     "label": "repo-hybrid",
     "attn": "repo-default",
-    "mean_ms": 1089.0741373697917,
-    "min_ms": 1084.383056640625,
+    "mean_ms": 1092.7197672526042,
+    "min_ms": 1087.1077880859375,
     "audio": 138240
+  },
+  {
+    "label": "repo-hybrid-compile-reduce-overhead",
+    "attn": "sdpa",
+    "mean_ms": 746.5982869466146,
+    "min_ms": 739.46337890625,
+    "audio": 122880
   }
 ]
