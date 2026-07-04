@@ -28,18 +28,6 @@ against the strongest framework baseline, not only against eager `generate()`.
 
 ## Main Results
 
-All numbers are steady-state measurements after warmup. Qwen3.5 tests
-[`RightNow-AI/qwen3.5-triton`](https://github.com/RightNow-AI/qwen3.5-triton)-derived
-kernels (9B attribution runs shown; the 0.8B-27B sweep is in Case Study 1).
-Qwen3-TTS tests the
-[`newgrit1004/qwen3-tts-triton`](https://github.com/newgrit1004/qwen3-tts-triton)
-Hybrid runner, as end-to-end latency normalized per 1k output audio samples.
-`Graph only` is the static-cache + CUDA-graph path without custom kernels,
-`Compile only` is `torch.compile(max-autotune)` on the same fixed-shape
-regions, and the `+` rows add the project's custom Triton kernels. Qwen3-TTS
-ships its kernels only inside the graph runner, so its kernels-without-graph
-slot is n/a.
-
 ![Measured performance of every path on H100 and A100 for both cases](assets/main_results.svg)
 
 - **The headline gains come from static shapes plus graph capture or
@@ -52,6 +40,19 @@ slot is n/a.
   the Qwen3.5 0.8B-27B sweep and **1.60-1.65x** on Qwen3-TTS.
 - **Adding the kernels inside the compiled step is 0.94-1.02x**, within
   run-to-run noise: the compiler already fuses what the kernels fuse.
+
+Notes:
+
+- All numbers are steady-state measurements after warmup. `Graph only` =
+  StaticCache + CUDA graph, `Compile only` = `torch.compile(max-autotune)` on
+  the same fixed-shape regions, `+` rows add the project's custom kernels.
+- Qwen3.5 panels show the 9B attribution runs with
+  [`RightNow-AI/qwen3.5-triton`](https://github.com/RightNow-AI/qwen3.5-triton)-derived
+  kernels; the 0.8B-27B sweep is in Case Study 1.
+- Qwen3-TTS panels show the
+  [`newgrit1004/qwen3-tts-triton`](https://github.com/newgrit1004/qwen3-tts-triton)
+  Hybrid runner, normalized per 1k output audio samples. Its kernels ship only
+  inside the graph runner, hence the n/a slot.
 
 Survey snapshot: the same attribution pattern appears in other public repos,
 but those examples are secondary context. The reproduced results above are the
