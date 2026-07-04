@@ -13,8 +13,9 @@ This repo asks one narrow question:
 
 Custom kernels and `torch.compile` are not mutually exclusive, since a Triton
 kernel can run inside a compiled region. The question is therefore measured
-two ways: custom-kernel path vs `torch.compile` path head-to-head, and custom
-kernels **added on top of** the same `torch.compile` path.
+two ways: the custom-kernel path against the `torch.compile` path
+head-to-head, and the same `torch.compile` path with vs without the custom
+kernels traced inside.
 
 Short answer: not by themselves. In the reproduced cases below, the large
 headline speedups come from static shapes and graph capture. The handwritten
@@ -37,23 +38,37 @@ All numbers are steady-state measurements after warmup. Qwen3.5
 framework-vs-custom is the 0.8B-27B sweep; its attribution columns are the 9B
 ablation. Qwen3-TTS ratios use output-normalized latency (`ms / 1k samples`).
 
-| Case | Custom-kernel path | Best framework baseline | Framework faster than custom | Kernel-only gain | Static/graph gain | Kernel-on-compile gain | Takeaway |
-|---|---|---|---:|---:|---:|---:|---|
-| Qwen3.5 decode | [`RightNow-AI/qwen3.5-triton`](https://github.com/RightNow-AI/qwen3.5-triton)-derived kernels + manual graph | `StaticCache` + `torch.compile(max-autotune)` | **1.11-1.50x** | 1.07-1.11x | **2.39-2.97x** | 0.99-1.02x | compile wins; graph dominates; kernels redundant under compile |
-| Qwen3-TTS E2E | [`newgrit1004/qwen3-tts-triton`](https://github.com/newgrit1004/qwen3-tts-triton) Hybrid | fixed-shape predictor/talker `torch.compile(max-autotune)` | **1.60-1.65x** | 1.31-1.32x | **3.55-4.80x** | 0.94-1.00x | compile wins; graph dominates; kernels redundant under compile |
+Two cases are reproduced. Qwen3.5 decode pits
+[`RightNow-AI/qwen3.5-triton`](https://github.com/RightNow-AI/qwen3.5-triton)-derived
+kernels plus a manual CUDA graph against a `StaticCache` +
+`torch.compile(max-autotune)` baseline. Qwen3-TTS E2E pits the
+[`newgrit1004/qwen3-tts-triton`](https://github.com/newgrit1004/qwen3-tts-triton)
+Hybrid runner against a fixed-shape predictor/talker
+`torch.compile(max-autotune)` baseline. A framework baseline means
+PyTorch/Hugging Face/compiler/runtime optimizations only, without
+project-specific handwritten Triton/CUDA kernels.
+
+| Case | Compile vs custom | Kernel-only | Graph-only | Kernel on compile |
+|---|---:|---:|---:|---:|
+| Qwen3.5 decode | **1.11-1.50x** | 1.07-1.11x | **2.39-2.97x** | 0.99-1.02x |
+| Qwen3-TTS E2E | **1.60-1.65x** | 1.31-1.32x | **3.55-4.80x** | 0.94-1.00x |
 
 Read the table as:
 
-- `Framework baseline`: PyTorch/Hugging Face/compiler/runtime optimizations,
-  without project-specific handwritten Triton/CUDA kernels.
-- `Framework faster than custom`: `custom latency / framework latency` for
-  Qwen3-TTS, and `framework tok/s / custom tok/s` for Qwen3.5. Values above
-  **1.0x mean the framework baseline is faster**.
-- `Kernel-only gain`: custom kernels over the matching framework path.
-- `Static/graph gain`: graph/static-cache path over the ordinary baseline.
-- `Kernel-on-compile gain`: the same custom kernels applied *inside* the
+- `Compile vs custom`: the best framework compile path against the custom
+  path, head-to-head (`custom latency / framework latency` for Qwen3-TTS,
+  `framework tok/s / custom tok/s` for Qwen3.5). Values above **1.0x mean the
+  framework baseline is faster**.
+- `Kernel-only`: custom kernels over the matching framework path, without
+  graph capture or compile.
+- `Graph-only`: the graph/static-cache path over the ordinary baseline.
+- `Kernel on compile`: the same custom kernels applied *inside* the
   `torch.compile` path, versus that compile path alone. Values around or below
   1.0x mean the kernels add nothing once the compiler is in play.
+
+Both cases show the same pattern: the framework compile baseline beats the
+custom-kernel path head-to-head, static shapes and graph capture explain most
+of the headline speedup, and the kernels do not improve the compiled path.
 
 Survey snapshot: the same attribution pattern appears in other public repos,
 but those examples are secondary context. The reproduced results above are the
