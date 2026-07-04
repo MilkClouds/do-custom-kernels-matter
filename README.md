@@ -34,40 +34,30 @@ against the strongest framework baseline, not only against eager `generate()`.
 
 ## Main Results
 
-All numbers are steady-state measurements after warmup.
-
-Two cases are reproduced. Qwen3.5 decode pits
+All numbers are steady-state measurements after warmup. Qwen3.5 tests
 [`RightNow-AI/qwen3.5-triton`](https://github.com/RightNow-AI/qwen3.5-triton)-derived
-kernels plus a manual CUDA graph against a `StaticCache` +
-`torch.compile(max-autotune)` baseline. Qwen3-TTS E2E pits the
+kernels (9B attribution runs shown; the 0.8B-27B sweep is in Case Study 1).
+Qwen3-TTS tests the
 [`newgrit1004/qwen3-tts-triton`](https://github.com/newgrit1004/qwen3-tts-triton)
-Hybrid runner against a fixed-shape predictor/talker
-`torch.compile(max-autotune)` baseline. A framework baseline means
-PyTorch/Hugging Face/compiler/runtime optimizations only, without
-project-specific handwritten Triton/CUDA kernels.
+Hybrid runner, as end-to-end latency normalized per 1k output audio samples.
+`Graph only` is the static-cache + CUDA-graph path without custom kernels,
+`Compile only` is `torch.compile(max-autotune)` on the same fixed-shape
+regions, and the `+` rows add the project's custom Triton kernels. Qwen3-TTS
+ships its kernels only inside the graph runner, so its kernels-without-graph
+slot is n/a.
 
 ![Measured performance of every path on H100 and A100 for both cases](assets/main_results.svg)
 
-Read the figure as:
-
-- Qwen3.5 panels are 9B decode throughput in tok/s (higher is better) from the
-  attribution runs; the full 0.8B-27B sweep is in Case Study 1.
-- Qwen3-TTS panels are end-to-end latency per 1k output audio samples (lower is
-  better), since output length differs across paths.
-- `Kernels only` runs the custom kernels in plain eager decode. `Graph only`
-  is the static-cache + CUDA-graph path without custom kernels (`Faster` for
-  Qwen3-TTS). `Compile only` is `torch.compile(max-autotune)` on the same
-  fixed-shape regions. The `+` rows add the custom kernels to those paths.
-  Qwen3-TTS ships its Triton patches only inside the graph runner, so it has
-  no kernels-without-graph measurement (n/a).
-- The figure is generated from the result artifacts:
-  `uv run --group plot python scripts/plot_main_results.py`.
-
-The pattern is the same in both cases: the big jump comes from static shapes
-plus graph capture or compile, the custom kernels add 1.07-1.35x on top of
-the eager or graph path, the compile-only path beats the full custom path
-everywhere, and adding the custom kernels inside the compiled step moves it
-by only 0.94-1.02x, within noise.
+- **The headline gains come from static shapes plus graph capture or
+  compile**: graph alone is **2.4-3.0x** over eager decode on Qwen3.5 and
+  **3.5-4.8x** on Qwen3-TTS; compile alone reaches **3.1-4.2x** and
+  **7.9-10.0x**.
+- **The custom kernels are a small add-on**: **1.07-1.11x** in eager decode,
+  **1.13-1.35x** on top of the graph path.
+- **Compile beats the full custom path everywhere**: by **1.11-1.50x** across
+  the Qwen3.5 0.8B-27B sweep and **1.60-1.65x** on Qwen3-TTS.
+- **Adding the kernels inside the compiled step is 0.94-1.02x**, within
+  run-to-run noise: the compiler already fuses what the kernels fuse.
 
 Survey snapshot: the same attribution pattern appears in other public repos,
 but those examples are secondary context. The reproduced results above are the
@@ -365,6 +355,12 @@ bash scripts/slurm/submit_all.sh
 uv sync --only-group dev
 uv run --no-sync ruff check .
 uv run --no-sync ruff format --check .
+```
+
+The README figure is generated from the result artifacts:
+
+```bash
+uv run --group plot python scripts/plot_main_results.py
 ```
 
 Ruff uses `line-length = 119`; CI runs the same lint and format checks. The
