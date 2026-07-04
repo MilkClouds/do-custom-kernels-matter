@@ -7,6 +7,7 @@
   "batch": 1,
   "prompt": 512,
   "decode_tokens": 128,
+  "timed_region": "fixed prompt prefill plus generated decode tokens; compile/graph/custom interventions target the fixed-shape decode step",
   "warmup_tokens": 16,
   "deltanet_fast_path": "fla+causal_conv1d",
   "sizes": [
@@ -14,9 +15,11 @@
   ],
   "paths_requested": [
     "eager",
+    "compile",
     "hf-graph",
     "patched-eager",
-    "patched-graph"
+    "patched-graph",
+    "patched-compile"
   ],
   "compile_modes": [
     "reduce-overhead",
@@ -28,30 +31,54 @@
       "paths": [
         {
           "path": "eager",
-          "tok_s": 36.0,
+          "tok_s": 37.0,
           "speedup_vs_eager": 1.0,
           "error": null
         },
         {
+          "path": "compile-reduce-overhead",
+          "tok_s": 140.3,
+          "speedup_vs_eager": 3.794,
+          "error": null
+        },
+        {
+          "path": "compile-max-autotune",
+          "tok_s": 156.9,
+          "speedup_vs_eager": 4.241,
+          "error": null
+        },
+        {
           "path": "hf-graph",
-          "tok_s": 119.3,
-          "speedup_vs_eager": 3.318,
+          "tok_s": 109.9,
+          "speedup_vs_eager": 2.971,
           "error": null
         },
         {
           "path": "patched-eager",
           "tok_s": 41.2,
-          "speedup_vs_eager": 1.146,
+          "speedup_vs_eager": 1.113,
           "error": null
         },
         {
           "path": "patched-graph",
-          "tok_s": 129.1,
-          "speedup_vs_eager": 3.591,
+          "tok_s": 130.0,
+          "speedup_vs_eager": 3.515,
+          "error": null
+        },
+        {
+          "path": "patched-compile-reduce-overhead",
+          "tok_s": 138.9,
+          "speedup_vs_eager": 3.755,
+          "error": null
+        },
+        {
+          "path": "patched-compile-max-autotune",
+          "tok_s": 159.8,
+          "speedup_vs_eager": 4.32,
           "error": null
         }
       ]
     }
   ],
-  "wall_s": 77.6
+  "wall_s": 243.9
 }

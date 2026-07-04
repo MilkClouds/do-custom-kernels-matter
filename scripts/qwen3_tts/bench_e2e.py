@@ -16,7 +16,9 @@ TEXT = os.getenv(
     "Hello, this is a fair decode benchmark of the text to speech system.",
 )
 OUT = os.getenv("OUT", "decompose_results.json")
-ROWS = {row.strip() for row in os.getenv("ROWS", "base,faster,compile,hybrid").split(",") if row.strip()}
+ROWS = {
+    row.strip() for row in os.getenv("ROWS", "base,faster,compile,hybrid,hybrid-compile").split(",") if row.strip()
+}
 
 
 def audio_len(out):
@@ -107,11 +109,13 @@ def run_repo(label, module_name, class_name):
     return run(label, _run)
 
 
-def run_compiled():
+def run_compiled(triton_patch=False):
+    label = f"repo-hybrid-compile-{COMPILE_MODE}" if triton_patch else f"repo-compile-{COMPILE_MODE}"
+
     def _run():
         from kernelcheck.compiled_qwen3_tts import CompiledFasterRunner
 
-        runner = CompiledFasterRunner(compile_mode=COMPILE_MODE, attn_implementation=ATTN)
+        runner = CompiledFasterRunner(compile_mode=COMPILE_MODE, attn_implementation=ATTN, triton_patch=triton_patch)
         runner.load_model()
         mean_ms, min_ms, audio = timed(
             lambda: runner.generate(
@@ -127,14 +131,14 @@ def run_compiled():
         gc.collect()
         torch.cuda.empty_cache()
         return {
-            "label": f"repo-compile-{COMPILE_MODE}",
+            "label": label,
             "attn": ATTN,
             "mean_ms": mean_ms,
             "min_ms": min_ms,
             "audio": audio,
         }
 
-    return run(f"repo-compile-{COMPILE_MODE}", _run)
+    return run(label, _run)
 
 
 def ms_per_1k(row):
@@ -155,6 +159,8 @@ def main():
         rows.append(run_compiled())
     if "hybrid" in ROWS:
         rows.append(run_repo("repo-hybrid", "triton_faster_runner", "TritonFasterRunner"))
+    if "hybrid-compile" in ROWS:
+        rows.append(run_compiled(triton_patch=True))
     rows = [r for r in rows if r]
 
     if not rows:
@@ -184,6 +190,13 @@ def main():
         sample_norm = ms_per_1k(hybrid) / ms_per_1k(compile_row)
         print(
             f"torch.compile -> Hybrid: {wall:.2f}x faster wall-clock, {sample_norm:.2f}x faster per generated sample",
+            flush=True,
+        )
+    hybrid_compile = next((row for row in rows if row["label"].startswith("repo-hybrid-compile-")), None)
+    if compile_row and hybrid_compile:
+        marginal = ms_per_1k(compile_row) / ms_per_1k(hybrid_compile)
+        print(
+            f"compile -> compile+kernels marginal: {marginal:.2f}x per generated sample",
             flush=True,
         )
 

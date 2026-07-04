@@ -238,7 +238,13 @@ def create_compiled_faster_qwen3_tts(
 
 
 class CompiledFasterRunner:
-    """Small runner matching qwen3_tts_triton's Base/Faster/Hybrid interface."""
+    """Small runner matching qwen3_tts_triton's Base/Faster/Hybrid interface.
+
+    With ``triton_patch=True`` the repo's custom Triton kernels are applied to
+    the same modules before compile warmup, mirroring ``TritonFasterRunner``
+    (``enable_fused_norm=True``, ``patch_range=(0, 24)``), so the combined
+    "custom kernels + torch.compile" path can be measured.
+    """
 
     def __init__(
         self,
@@ -247,12 +253,14 @@ class CompiledFasterRunner:
         dtype: torch.dtype = torch.bfloat16,
         compile_mode: str = "reduce-overhead",
         attn_implementation: str = "sdpa",
+        triton_patch: bool = False,
     ) -> None:
         self.model_id = model_id
         self.device = device
         self.dtype = dtype
         self.compile_mode = compile_mode
         self.attn_implementation = attn_implementation
+        self.triton_patch = triton_patch
         self.model = None
 
     def load_model(self) -> None:
@@ -264,6 +272,11 @@ class CompiledFasterRunner:
             attn_implementation=self.attn_implementation,
             do_sample=False,
         )
+        if self.triton_patch:
+            from qwen3_tts_triton.models.patching import apply_triton_kernels, find_patchable_model
+
+            internal = find_patchable_model(self.model.model)
+            apply_triton_kernels(internal, enable_fused_norm=True, patch_range=(0, 24))
 
     def generate(
         self,

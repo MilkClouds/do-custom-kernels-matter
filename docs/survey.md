@@ -13,24 +13,32 @@ H100:
 
 | Path | Mean latency | ms / 1k samples |
 |---|---:|---:|
-| Faster | 1427 ms | 10.62 |
-| Hybrid | 1089 ms | 7.88 |
-| `torch.compile(reduce-overhead)` | 882 ms | 6.05 |
-| `torch.compile(max-autotune)` | 609 ms | **4.80** |
+| Faster | 1429 ms | 10.63 |
+| Hybrid | 1093 ms | 7.90 |
+| `torch.compile(reduce-overhead)` | 838 ms | 6.06 |
+| `torch.compile(max-autotune)` | 551 ms | **4.78** |
+| Hybrid + `compile(reduce-overhead)` | 747 ms | 6.08 |
+| Hybrid + `compile(max-autotune)` | 683 ms | 5.08 |
 
 A100:
 
 | Path | Mean latency | ms / 1k samples |
 |---|---:|---:|
-| Faster | 2029 ms | 14.09 |
-| Hybrid | 1548 ms | 10.90 |
-| `torch.compile(reduce-overhead)` | 1245 ms | 8.42 |
-| `torch.compile(max-autotune)` | 958 ms | **7.45** |
+| Faster | 1949 ms | 13.53 |
+| Hybrid | 1479 ms | 10.41 |
+| `torch.compile(reduce-overhead)` | 1133 ms | 7.66 |
+| `torch.compile(max-autotune)` | 837 ms | **6.51** |
+| Hybrid + `compile(reduce-overhead)` | 981 ms | 7.99 |
+| Hybrid + `compile(max-autotune)` | 1117 ms | 6.76 |
 
 The compile baseline targets the same two regions as `faster_qwen3_tts`:
 `PredictorGraph._full_loop` and `TalkerGraph._decode_step`. It does not compile
-outer `generate()`. The compile rows use `attn=sdpa`; Base/Faster/Hybrid use
-the public repo defaults. `max-autotune` rows are separate compile-only runs.
+outer `generate()`. The compile and Hybrid + compile rows use `attn=sdpa`;
+Base/Faster/Hybrid use the public repo defaults. `max-autotune` rows are
+separate compile-only runs. Hybrid + compile applies the repo's Triton patches
+inside the compiled regions; it lands at 0.94-1.00x of the plain compile path
+per generated sample, so the custom kernels add nothing once the regions are
+compiled.
 
 ## Scope
 

@@ -7,6 +7,7 @@
   "batch": 1,
   "prompt": 512,
   "decode_tokens": 128,
+  "timed_region": "fixed prompt prefill plus generated decode tokens; compile/graph/custom interventions target the fixed-shape decode step",
   "warmup_tokens": 16,
   "deltanet_fast_path": "fla+causal_conv1d",
   "sizes": [
@@ -19,7 +20,8 @@
   "paths_requested": [
     "eager",
     "compile",
-    "patched-graph"
+    "patched-graph",
+    "patched-compile"
   ],
   "compile_modes": [
     "reduce-overhead",
@@ -31,26 +33,38 @@
       "paths": [
         {
           "path": "eager",
-          "tok_s": 53.1,
+          "tok_s": 51.9,
           "speedup_vs_eager": 1.0,
           "error": null
         },
         {
           "path": "compile-reduce-overhead",
-          "tok_s": 560.8,
-          "speedup_vs_eager": 10.552,
+          "tok_s": 561.1,
+          "speedup_vs_eager": 10.815,
           "error": null
         },
         {
           "path": "compile-max-autotune",
-          "tok_s": 634.0,
-          "speedup_vs_eager": 11.929,
+          "tok_s": 638.0,
+          "speedup_vs_eager": 12.298,
           "error": null
         },
         {
           "path": "patched-graph",
-          "tok_s": 425.5,
-          "speedup_vs_eager": 8.007,
+          "tok_s": 424.3,
+          "speedup_vs_eager": 8.179,
+          "error": null
+        },
+        {
+          "path": "patched-compile-reduce-overhead",
+          "tok_s": 482.8,
+          "speedup_vs_eager": 9.307,
+          "error": null
+        },
+        {
+          "path": "patched-compile-max-autotune",
+          "tok_s": 644.6,
+          "speedup_vs_eager": 12.424,
           "error": null
         }
       ]
@@ -60,26 +74,38 @@
       "paths": [
         {
           "path": "eager",
-          "tok_s": 50.5,
+          "tok_s": 53.3,
           "speedup_vs_eager": 1.0,
           "error": null
         },
         {
           "path": "compile-reduce-overhead",
-          "tok_s": 379.8,
-          "speedup_vs_eager": 7.514,
+          "tok_s": 380.3,
+          "speedup_vs_eager": 7.139,
           "error": null
         },
         {
           "path": "compile-max-autotune",
-          "tok_s": 463.8,
-          "speedup_vs_eager": 9.176,
+          "tok_s": 452.0,
+          "speedup_vs_eager": 8.484,
           "error": null
         },
         {
           "path": "patched-graph",
-          "tok_s": 334.2,
-          "speedup_vs_eager": 6.612,
+          "tok_s": 331.1,
+          "speedup_vs_eager": 6.216,
+          "error": null
+        },
+        {
+          "path": "patched-compile-reduce-overhead",
+          "tok_s": 369.8,
+          "speedup_vs_eager": 6.942,
+          "error": null
+        },
+        {
+          "path": "patched-compile-max-autotune",
+          "tok_s": 457.5,
+          "speedup_vs_eager": 8.587,
           "error": null
         }
       ]
@@ -89,26 +115,38 @@
       "paths": [
         {
           "path": "eager",
-          "tok_s": 38.0,
+          "tok_s": 37.4,
           "speedup_vs_eager": 1.0,
           "error": null
         },
         {
           "path": "compile-reduce-overhead",
-          "tok_s": 208.7,
-          "speedup_vs_eager": 5.49,
+          "tok_s": 206.8,
+          "speedup_vs_eager": 5.535,
           "error": null
         },
         {
           "path": "compile-max-autotune",
-          "tok_s": 238.1,
-          "speedup_vs_eager": 6.265,
+          "tok_s": 238.7,
+          "speedup_vs_eager": 6.387,
           "error": null
         },
         {
           "path": "patched-graph",
-          "tok_s": 185.8,
-          "speedup_vs_eager": 4.888,
+          "tok_s": 186.1,
+          "speedup_vs_eager": 4.981,
+          "error": null
+        },
+        {
+          "path": "patched-compile-reduce-overhead",
+          "tok_s": 204.7,
+          "speedup_vs_eager": 5.477,
+          "error": null
+        },
+        {
+          "path": "patched-compile-max-autotune",
+          "tok_s": 239.6,
+          "speedup_vs_eager": 6.411,
           "error": null
         }
       ]
@@ -118,26 +156,38 @@
       "paths": [
         {
           "path": "eager",
-          "tok_s": 36.8,
+          "tok_s": 37.1,
           "speedup_vs_eager": 1.0,
           "error": null
         },
         {
           "path": "compile-reduce-overhead",
-          "tok_s": 140.4,
-          "speedup_vs_eager": 3.812,
+          "tok_s": 140.2,
+          "speedup_vs_eager": 3.781,
           "error": null
         },
         {
           "path": "compile-max-autotune",
-          "tok_s": 153.5,
-          "speedup_vs_eager": 4.168,
+          "tok_s": 156.3,
+          "speedup_vs_eager": 4.215,
           "error": null
         },
         {
           "path": "patched-graph",
-          "tok_s": 128.6,
-          "speedup_vs_eager": 3.493,
+          "tok_s": 130.6,
+          "speedup_vs_eager": 3.521,
+          "error": null
+        },
+        {
+          "path": "patched-compile-reduce-overhead",
+          "tok_s": 138.9,
+          "speedup_vs_eager": 3.744,
+          "error": null
+        },
+        {
+          "path": "patched-compile-max-autotune",
+          "tok_s": 160.3,
+          "speedup_vs_eager": 4.321,
           "error": null
         }
       ]
@@ -147,30 +197,42 @@
       "paths": [
         {
           "path": "eager",
-          "tok_s": 18.9,
+          "tok_s": 18.5,
           "speedup_vs_eager": 1.0,
           "error": null
         },
         {
           "path": "compile-reduce-overhead",
-          "tok_s": 47.2,
-          "speedup_vs_eager": 2.5,
+          "tok_s": 46.9,
+          "speedup_vs_eager": 2.538,
           "error": null
         },
         {
           "path": "compile-max-autotune",
-          "tok_s": 47.8,
-          "speedup_vs_eager": 2.533,
+          "tok_s": 50.4,
+          "speedup_vs_eager": 2.726,
           "error": null
         },
         {
           "path": "patched-graph",
-          "tok_s": 45.0,
-          "speedup_vs_eager": 2.382,
+          "tok_s": 44.3,
+          "speedup_vs_eager": 2.396,
+          "error": null
+        },
+        {
+          "path": "patched-compile-reduce-overhead",
+          "tok_s": 46.6,
+          "speedup_vs_eager": 2.521,
+          "error": null
+        },
+        {
+          "path": "patched-compile-max-autotune",
+          "tok_s": 49.4,
+          "speedup_vs_eager": 2.672,
           "error": null
         }
       ]
     }
   ],
-  "wall_s": 865.0
+  "wall_s": 1124.7
 }

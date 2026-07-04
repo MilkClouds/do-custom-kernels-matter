@@ -8,7 +8,8 @@ tokens; compile/graph/custom interventions target the fixed-shape decode step.
 2. framework HF StaticCache + torch.compile;
 3. HF + explicit CUDA-graph replay;
 4. patched custom Triton kernels without graph replay;
-5. patched custom Triton kernels with graph replay.
+5. patched custom Triton kernels with graph replay;
+6. patched custom Triton kernels under the same torch.compile decode step.
 
 The model is random-init. That is intentional: the experiment measures latency
 and launch/cache/kernel attribution, not language quality.
@@ -94,7 +95,7 @@ QWEN35_CONFIGS: dict[str, dict[str, int]] = {
     ),
 }
 DTYPE_MAP = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
-DEFAULT_PATHS = ["eager", "compile", "hf-graph", "patched-eager", "patched-graph"]
+DEFAULT_PATHS = ["eager", "compile", "hf-graph", "patched-eager", "patched-graph", "patched-compile"]
 
 
 def fast_path_status() -> str:
@@ -220,7 +221,9 @@ def bench_one(size: str, args: argparse.Namespace) -> dict[str, Any]:
     max_seq_len = args.prompt + args.tokens + args.warmup_tokens + 16
     rows: list[dict[str, Any]] = []
 
-    needs_qwen35 = any(path in args.paths for path in ("hf-graph", "patched-eager", "patched-graph"))
+    needs_qwen35 = any(
+        path in args.paths for path in ("hf-graph", "patched-eager", "patched-graph", "patched-compile")
+    )
     if needs_qwen35:
         _, patch_model, unpatch_model = require_qwen35_triton()
     else:
@@ -281,6 +284,22 @@ def bench_one(size: str, args: argparse.Namespace) -> dict[str, Any]:
             return timed_decode(graph_loop(model, input_ids, max_seq_len), args.tokens, args.warmup_tokens)
 
         rows.append(measure("patched-graph", run_patched_graph, eager))
+        unpatch_model()
+
+    if "patched-compile" in args.paths:
+        assert patch_model is not None and unpatch_model is not None
+        patch_model(model)
+        for mode in args.compile_modes:
+            torch.compiler.reset()
+
+            def run_patched_compile(mode: str = mode) -> float:
+                return timed_decode(
+                    compiled_loop(model, model.config, input_ids, mode, max_seq_len),
+                    args.tokens,
+                    max(args.warmup_tokens, 8),
+                )
+
+            rows.append(measure(f"patched-compile-{mode}", run_patched_compile, eager))
         unpatch_model()
 
     gc.collect()
