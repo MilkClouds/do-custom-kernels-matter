@@ -34,9 +34,7 @@ against the strongest framework baseline, not only against eager `generate()`.
 
 ## Main Results
 
-All numbers are steady-state measurements after warmup. Qwen3.5
-framework-vs-custom is the 0.8B-27B sweep; its attribution columns are the 9B
-ablation. Qwen3-TTS ratios use output-normalized latency (`ms / 1k samples`).
+All numbers are steady-state measurements after warmup.
 
 Two cases are reproduced. Qwen3.5 decode pits
 [`RightNow-AI/qwen3.5-triton`](https://github.com/RightNow-AI/qwen3.5-triton)-derived
@@ -48,27 +46,31 @@ Hybrid runner against a fixed-shape predictor/talker
 PyTorch/Hugging Face/compiler/runtime optimizations only, without
 project-specific handwritten Triton/CUDA kernels.
 
-| Case | Compile vs custom | Kernel-only | Graph-only | Kernel on compile |
-|---|---:|---:|---:|---:|
-| Qwen3.5 decode | **1.11-1.50x** | 1.07-1.11x | **2.39-2.97x** | 0.99-1.02x |
-| Qwen3-TTS E2E | **1.60-1.65x** | 1.31-1.32x | **3.55-4.80x** | 0.94-1.00x |
+| Case | Eager | Kernels only | Graph only | Kernels + graph | Compile only | Kernels + compile |
+|---|---:|---:|---:|---:|---:|---:|
+| Qwen3.5 9B, H100 (tok/s) | 37.0 | 41.2 | 109.9 | 130.0 | 156.9 | 159.8 |
+| Qwen3.5 9B, A100 (tok/s) | 29.7 | 31.9 | 71.1 | 80.3 | 91.7 | 92.6 |
+| Qwen3-TTS, H100 (ms/1k) | 37.74 | n/a | 10.63 | 7.90 | 4.78 | 5.08 |
+| Qwen3-TTS, A100 (ms/1k) | 64.94 | n/a | 13.53 | 10.41 | 6.51 | 6.76 |
 
 Read the table as:
 
-- `Compile vs custom`: the best framework compile path against the custom
-  path, head-to-head (`custom latency / framework latency` for Qwen3-TTS,
-  `framework tok/s / custom tok/s` for Qwen3.5). Values above **1.0x mean the
-  framework baseline is faster**.
-- `Kernel-only`: custom kernels over the matching framework path, without
-  graph capture or compile.
-- `Graph-only`: the graph/static-cache path over the ordinary baseline.
-- `Kernel on compile`: the same custom kernels applied *inside* the
-  `torch.compile` path, versus that compile path alone. Values around or below
-  1.0x mean the kernels add nothing once the compiler is in play.
+- Qwen3.5 rows are 9B decode throughput in tok/s (higher is better) from the
+  attribution runs; the full 0.8B-27B sweep is in Case Study 1.
+- Qwen3-TTS rows are end-to-end latency per 1k output audio samples (lower is
+  better), since output length differs across paths.
+- `Kernels only` runs the custom kernels in plain eager decode. `Graph only`
+  is the static-cache + CUDA-graph path without custom kernels (`Faster` for
+  Qwen3-TTS). `Compile only` is `torch.compile(max-autotune)` on the same
+  fixed-shape regions. The `+` columns add the custom kernels to those paths.
+  Qwen3-TTS ships its Triton patches only inside the graph runner, so it has
+  no kernels-without-graph measurement (n/a).
 
-Both cases show the same pattern: the framework compile baseline beats the
-custom-kernel path head-to-head, static shapes and graph capture explain most
-of the headline speedup, and the kernels do not improve the compiled path.
+The pattern is the same in both cases: the big jump comes from static shapes
+plus graph capture or compile, the custom kernels add 1.07-1.35x on top of
+the eager or graph path, the compile-only path beats the full custom path
+everywhere, and adding the custom kernels inside the compiled step moves it
+by only 0.94-1.02x, within noise.
 
 Survey snapshot: the same attribution pattern appears in other public repos,
 but those examples are secondary context. The reproduced results above are the
