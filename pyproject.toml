@@ -15,6 +15,7 @@ qwen35 = ["flash-linear-attention", "causal-conv1d"]
 
 [dependency-groups]
 dev = ["ruff"]
+plot = ["matplotlib", "tueplots"]
 
 [tool.uv]
 exclude-newer = "2026-06-29T00:00:00+09:00"

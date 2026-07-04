@@ -46,25 +46,22 @@ Hybrid runner against a fixed-shape predictor/talker
 PyTorch/Hugging Face/compiler/runtime optimizations only, without
 project-specific handwritten Triton/CUDA kernels.
 
-| Case | Eager | Kernels only | Graph only | Kernels + graph | Compile only | Kernels + compile |
-|---|---:|---:|---:|---:|---:|---:|
-| Qwen3.5 9B, H100 (tok/s) | 37.0 | 41.2 | 109.9 | 130.0 | 156.9 | 159.8 |
-| Qwen3.5 9B, A100 (tok/s) | 29.7 | 31.9 | 71.1 | 80.3 | 91.7 | 92.6 |
-| Qwen3-TTS, H100 (ms/1k) | 37.74 | n/a | 10.63 | 7.90 | 4.78 | 5.08 |
-| Qwen3-TTS, A100 (ms/1k) | 64.94 | n/a | 13.53 | 10.41 | 6.51 | 6.76 |
+![Measured performance of every path on H100 and A100 for both cases](assets/main_results.svg)
 
-Read the table as:
+Read the figure as:
 
-- Qwen3.5 rows are 9B decode throughput in tok/s (higher is better) from the
+- Qwen3.5 panels are 9B decode throughput in tok/s (higher is better) from the
   attribution runs; the full 0.8B-27B sweep is in Case Study 1.
-- Qwen3-TTS rows are end-to-end latency per 1k output audio samples (lower is
+- Qwen3-TTS panels are end-to-end latency per 1k output audio samples (lower is
   better), since output length differs across paths.
 - `Kernels only` runs the custom kernels in plain eager decode. `Graph only`
   is the static-cache + CUDA-graph path without custom kernels (`Faster` for
   Qwen3-TTS). `Compile only` is `torch.compile(max-autotune)` on the same
-  fixed-shape regions. The `+` columns add the custom kernels to those paths.
+  fixed-shape regions. The `+` rows add the custom kernels to those paths.
   Qwen3-TTS ships its Triton patches only inside the graph runner, so it has
   no kernels-without-graph measurement (n/a).
+- The figure is generated from the result artifacts:
+  `uv run --group plot python scripts/plot_main_results.py`.
 
 The pattern is the same in both cases: the big jump comes from static shapes
 plus graph capture or compile, the custom kernels add 1.07-1.35x on top of
